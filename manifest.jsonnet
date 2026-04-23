@@ -4,12 +4,13 @@ local manifest_v3 = import 'core/manifest_v3.libsonnet';
 local utils = import 'core/utils.libsonnet';
 
 local icons() = {
-  [size]: 'assets/huggingface.svg'
-  for size in ['16', '48', '128']
+  '16': 'assets/icon-16.png',
+  '48': 'assets/icon-48.png',
+  '128': 'assets/icon-128.png',
 };
 
 local name = 'HF Search Extension';
-local version = '2.0.2';
+local version = '2.0.3';
 local keyword = 'hf';
 local description = 'HF Search Extension - the ultimate search extension for Hugging Face';
 
