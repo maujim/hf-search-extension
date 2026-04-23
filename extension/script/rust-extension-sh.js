@@ -1,7 +1,7 @@
 window.addEventListener("message", async function (event) {
     if (event.source === window &&
         event.data &&
-        event.data.direction === "rust-search-extension:update-index") {
+        event.data.direction === "hf-search-extension:update-index") {
         let message = event.data.message;
         console.log('target:', message.target);
         switch (message.target) {

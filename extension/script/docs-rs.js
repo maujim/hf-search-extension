@@ -307,14 +307,14 @@ function insertAddToExtensionElement(state) {
         iconClass = "fa-error";
     } else {
         // The default case: need-to-install.
-        content = `<p>Add this crate to Rust Search Extension then you can search it in the address bar.</p>`;
+        content = `<p>Add this crate to HF Search Extension then you can search it in the address bar.</p>`;
         iconColor = "#121212";
         iconClass = "fa-plus-circle";
     }
     li.innerHTML = `<div class="add-to-extension"
-                         aria-label="Add to Rust Search Extension">
+                         aria-label="Add to HF Search Extension">
                          <span style="color:${iconColor};height:13px;width:13px;display:inline-block;vertical-align:middle;" class="fa fa-solid fa-svg ${iconClass}"></span>
-                         <span class="title"> to Rust Search Extension</span>
+                         <span class="title"> to HF Search Extension</span>
                     </div>
                     <div class="pure-menu-children" role="menu">
                         <div class="add-to-extension-content" onclick="event.stopPropagation()">
@@ -356,7 +356,7 @@ async function getAdvisories() {
 window.addEventListener("message", async function (event) {
     if (event.source === window &&
         event.data &&
-        event.data.direction === "rust-search-extension:docs.rs") {
+        event.data.direction === "hf-search-extension:docs.rs") {
         let message = event.data.message;
         await rse.CrateDocManager.addCrate(message);
         insertAddToExtensionElement(getState(message.crateVersion));

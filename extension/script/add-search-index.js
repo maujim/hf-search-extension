@@ -55,7 +55,7 @@
                     // [rustdoc] Use Map instead of Object for source files and search index #118910
                     // https://github.com/rust-lang/rust/pull/118910;
                     window.postMessage({
-                        direction: "rust-search-extension:docs.rs",
+                        direction: "hf-search-extension:docs.rs",
                         message: {
                             libName,
                             crateName,
@@ -68,7 +68,7 @@
                 } else { // stable/nightly pages
                     const STD_CRATES = ['std', 'test', 'proc_macro', 'core', 'alloc'];
                     window.postMessage({
-                        direction: `rust-search-extension:std`,
+                        direction: `hf-search-extension:std`,
                         message: {
                             searchIndex: Array.from(originalSearchIndex),
                             descShards: await loadDescShard(...STD_CRATES),

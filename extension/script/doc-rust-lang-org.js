@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
         linkSourcePageUrls();
     } else {
         // Docs page
-        let version = localStorage.getItem(`rust-search-extension:${TARGET}`);
+        let version = localStorage.getItem(`hf-search-extension:${TARGET}`);
         let now = new Date();
         let today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
         if (version && today <= Date.parse(version)) {
@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
 window.addEventListener("message", function (event) {
     if (event.source === window &&
         event.data &&
-        event.data.direction === "rust-search-extension:std") {
+        event.data.direction === "hf-search-extension:std") {
         let searchIndex = event.data.message.searchIndex;
         let descShards = event.data.message.descShards;
         if (TARGET === 'stable') {
@@ -40,7 +40,7 @@ window.addEventListener("message", function (event) {
         }
         let now = new Date();
         let version = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-        localStorage.setItem(`rust-search-extension:${TARGET}`, version);
+        localStorage.setItem(`hf-search-extension:${TARGET}`, version);
         console.log(version);
     }
 });

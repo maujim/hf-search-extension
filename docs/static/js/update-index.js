@@ -12,7 +12,7 @@ const indexList = document.querySelector(".index-list");
 
 function updateIndex(target, index, extra) {
     window.postMessage({
-        direction: "rust-search-extension:update-index",
+        direction: "hf-search-extension:update-index",
         message: {
             target,
             index,

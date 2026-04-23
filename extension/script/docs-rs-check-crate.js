@@ -15,8 +15,8 @@
         }
         let content = document.querySelector(".add-to-extension-content");
         if (content) {
-            content.innerHTML = "<p>This crate version is not supported by Rust Search Extension. <br><br>As of Rust Search Extension v2.0, we only support crates built after 2024-04-20.</p>";
+            content.innerHTML = "<p>This crate version is not supported by HF Search Extension. <br><br>As of HF Search Extension v2.0, we only support crates built after 2024-04-20.</p>";
         }
-        console.log("No searchState.descShards found, cannot add this crate to Rust Search Extension.");
+        console.log("No searchState.descShards found, cannot add this crate to HF Search Extension.");
     }
 })();

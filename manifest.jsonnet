@@ -4,14 +4,14 @@ local manifest_v3 = import 'core/manifest_v3.libsonnet';
 local utils = import 'core/utils.libsonnet';
 
 local icons() = {
-  [size]: 'assets/rust.png'
+  [size]: 'assets/huggingface.svg'
   for size in ['16', '48', '128']
 };
 
-local name = 'Rust Search Extension';
+local name = 'HF Search Extension';
 local version = '2.0.2';
-local keyword = 'rs';
-local description = 'Rust Search Extension - the ultimate search extension for Rust';
+local keyword = 'hf';
+local description = 'HF Search Extension - the ultimate search extension for Hugging Face';
 
 local browser = std.extVar('browser');
 
@@ -39,7 +39,7 @@ json
     '*://doc.rust-lang.org/*',
   ],
 ) {
-  description: 'A handy browser extension to search Rust docs and crates, etc in the address bar instantly!',
+  description: 'A handy browser extension to search Hugging Face models, datasets, and more from the address bar instantly!',
   // The production extension public key to get the constant extension id during development.
   [if browser == 'chrome' then 'key' else null]: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxOX+QfzcFnxPwwmzXDhuU59XGCSMZq+FGo0vOx/ufg/Vw7HfKEPVb9TKzrGtqW38kafWkjxOxGhF7VyyX2ymi55W0xqf8BedePbvMtV6H1tY5bscJ0dLKGH/ZG4T4f645LgvOWOBgyv8s3NDWXzwOMS57ER1y+EtHjDsWD1M0nfe0VCCLW18QlAsNTHfLZk6lUeEeGXZrl6+jK+pZxwhQFmc8cJvOyw7uAq6IJ9lnGDvxFVjGUepA0lKbLuIZjN3p70mgVUIuBYzKE6R8HDk4oBbKAK0HyyKfnuAYbfwVYotHw4def+OW9uADSlZEDC10wwIpU9NoP3szh+vWSnk0QIDAQAB',
 }
