@@ -55,8 +55,9 @@ async function init() {
     if (isInited) {
         return;
     }
+    isInited = true;
 
-    const defaultSuggestion = `Search std <match>docs</match>, external <match>docs</match> (~,@), <match>crates</match> (!), <match>attributes</match> (#), <match>books</match> (%), clippy <match>lints</match> (>), and <match>error codes</match>, etc in your address bar instantly!`;
+    const defaultSuggestion = `Search <match>Hugging Face models</match> instantly from your address bar.`;
     const omnibox = Omnibox.extension({ defaultSuggestion, maxSuggestionSize: Compat.omniboxPageSize() });
     await start(omnibox);
     await checkAutoUpdate();

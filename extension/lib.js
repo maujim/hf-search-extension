@@ -2,7 +2,7 @@ import settings from "./settings.js";
 import Statistics from "./statistics.js";
 import HistoryCommand from "./core/command/history.js";
 import CrateDocManager from "./crate-manager.js";
-import { Compat } from "./core/index.js";
+import { Compat, Omnibox } from "./core/index.js";
 import {
     LINT_URL,
     REDIRECT_URL,
@@ -25,6 +25,8 @@ export class RustSearchOmnibox {
         caniuseSearcher,
         lintSearcher,
         commandManager,
+        huggingFaceSearcher = null,
+        enableLegacyRustSearch = true,
     }) {
         function formatDoc(index, doc) {
             let content = doc.href;
@@ -44,6 +46,52 @@ export class RustSearchOmnibox {
                     description: `Remind: <dim>We only indexed the top 20K crates. Sorry for the inconvenience if your desired crate not show.</dim>`,
                 },
             ];
+        }
+
+        if (!enableLegacyRustSearch && huggingFaceSearcher) {
+            function huggingFaceRepoUrl(value) {
+                let repo = (value || "").trim().replace(/^\/+|\/+$/g, "");
+                if (!repo) {
+                    return null;
+                }
+                let encodedRepo = repo
+                    .split("/")
+                    .filter(Boolean)
+                    .map(part => encodeURIComponent(part))
+                    .join("/");
+                return `https://huggingface.co/${encodedRepo}`;
+            }
+
+            omnibox.bootstrap({
+                onSearch: async (query) => {
+                    return await huggingFaceSearcher.search(query);
+                },
+                onFormat: (_, model) => {
+                    return {
+                        content: `https://huggingface.co/${model.id}`,
+                        description: `<match>${Compat.escape(model.id)}</match>`,
+                    };
+                },
+                onAppend: async (query) => {
+                    let keyword = (query || "").trim();
+                    let url = huggingFaceRepoUrl(keyword);
+                    if (!url) {
+                        return [];
+                    }
+                    return [{
+                        content: url,
+                        description: `Open Hugging Face repo <match>${Compat.escape(keyword)}</match>`,
+                    }];
+                },
+                onEmptyNavigate: async (content, disposition) => {
+                    let url = huggingFaceRepoUrl(content);
+                    if (!url) {
+                        return;
+                    }
+                    Omnibox.navigateToUrl(url, disposition);
+                },
+            });
+            return;
         }
 
         omnibox.bootstrap({

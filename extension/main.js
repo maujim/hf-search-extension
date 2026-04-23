@@ -25,9 +25,28 @@ import {
 } from "./constants.js";
 import DescShardManager from "./search/docs/desc-shard.js";
 import { RustSearchOmnibox, getBaseUrl } from "./lib.js";
+import HuggingFaceSearch from "./search/huggingface.js";
 
+const ENABLE_HUGGINGFACE_SEARCH = true;
+const ENABLE_LEGACY_RUST_SEARCH = false;
 
 async function start(omnibox) {
+    if (ENABLE_HUGGINGFACE_SEARCH && !ENABLE_LEGACY_RUST_SEARCH) {
+        const huggingFaceSearcher = new HuggingFaceSearch({
+            debounceMs: 250,
+            cacheTtlMs: 60 * 1000,
+            maxCacheSize: 100,
+            limit: 10,
+        });
+
+        RustSearchOmnibox.run({
+            omnibox,
+            huggingFaceSearcher,
+            enableLegacyRustSearch: false,
+        });
+        return;
+    }
+
     // All dynamic setting items. Those items will been updated
     // in chrome.storage.onchange listener callback.
     let isOfflineMode = await settings.isOfflineMode;
