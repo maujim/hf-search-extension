@@ -8,8 +8,9 @@ This file documents the Hugging Face query-class syntax added to the extension.
   - `query`
   - Searches across **models + datasets**.
 
-- Query class:
+- Query class (prefix or suffix):
   - `@keyword query`
+  - `query @keyword`
   - Supported `keyword` values:
     - `model`
     - `dataset`
@@ -20,6 +21,11 @@ This file documents the Hugging Face query-class syntax added to the extension.
     - `collection`
     - `bucket`
 
+- Pagination token precedence:
+  - The trailing pagination token (`-`, `--`, etc.) is parsed first by omnibox pagination.
+  - Query-class parsing then runs on the remaining text.
+  - Example: `llama @dataset -` paginates within **dataset** search.
+
 ## Endpoint mapping
 
 - Default (no `@keyword`):
@@ -28,14 +34,14 @@ This file documents the Hugging Face query-class syntax added to the extension.
   - Results are merged round-robin.
 
 - Explicit class:
-  - `@model ...` → `GET /api/models`
-  - `@dataset ...` → `GET /api/datasets`
-  - `@space ...` → `GET /api/quicksearch?type=space`
-  - `@org ...` → `GET /api/quicksearch?type=org`
-  - `@user ...` → `GET /api/quicksearch?type=user`
-  - `@paper ...` → `GET /api/quicksearch?type=paper`
-  - `@collection ...` → `GET /api/quicksearch?type=collection`
-  - `@bucket ...` → `GET /api/quicksearch?type=bucket`
+  - `@model ...` or `... @model` → `GET /api/models`
+  - `@dataset ...` or `... @dataset` → `GET /api/datasets`
+  - `@space ...` or `... @space` → `GET /api/quicksearch?type=space`
+  - `@org ...` or `... @org` → `GET /api/quicksearch?type=org`
+  - `@user ...` or `... @user` → `GET /api/quicksearch?type=user`
+  - `@paper ...` or `... @paper` → `GET /api/quicksearch?type=paper`
+  - `@collection ...` or `... @collection` → `GET /api/quicksearch?type=collection`
+  - `@bucket ...` or `... @bucket` → `GET /api/quicksearch?type=bucket`
 
 ## Navigation mapping
 
@@ -54,6 +60,9 @@ Result rows are typed and open canonical Hugging Face pages:
 
 - `llama`
 - `@model llama`
+- `llama @model`
 - `@dataset llama`
+- `llama @dataset`
+- `llama @dataset -`
 - `@org huggingface`
 - `@paper attention`
