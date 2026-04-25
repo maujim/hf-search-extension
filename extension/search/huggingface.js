@@ -4,27 +4,30 @@ export default class HuggingFaceSearch {
         cacheTtlMs = 5 * 60 * 1000,
         maxCacheSize = 100,
         limit = 10,
+        deepLimit = 1000,
+        deepPrefetchDelayMs = 900,
     } = {}) {
         this.debounceMs = debounceMs;
         this.cacheTtlMs = cacheTtlMs;
         this.maxCacheSize = maxCacheSize;
-        this.cacheTtlMs = cacheTtlMs;
 
-        this.initialLimit = limit;
-        this.warmLimit = 100;
-        this.deepLimit = 1000;
+        // Minimum initial fetch size safety net.
+        this.baseLimit = limit;
+        this.deepLimit = deepLimit;
+        this.deepPrefetchDelayMs = deepPrefetchDelayMs;
 
         // query -> { value: [{id}], fetchedLimit, expiresAt }
         this.cache = new Map();
         // `${query}::${limit}` -> Promise
         this.inFlight = new Map();
-        // `${query}::${targetLimit}` -> timerId
+        // `${query}::deep` -> timerId
         this.prefetchTimers = new Map();
 
         this.latestQuery = "";
 
         // Debounce queue for "typing" searches.
         this.pendingQuery = "";
+        this.pendingLimit = 0;
         this.pendingTimer = null;
         this.pendingResolvers = [];
     }
@@ -39,45 +42,55 @@ export default class HuggingFaceSearch {
 
         let page = Math.max(1, context.page || 1);
         let pageSize = Math.max(1, context.pageSize || 8);
-        let requiredItems = page * pageSize;
-
-        let desiredLimit = this.initialLimit;
-        if (requiredItems > this.warmLimit) {
-            desiredLimit = this.deepLimit;
-        } else if (requiredItems > this.initialLimit) {
-            desiredLimit = this.warmLimit;
-        }
+        let initialLimit = Math.max(this.baseLimit, pageSize * 2);
+        let requiresDeep = page > 2;
+        let desiredLimit = requiresDeep ? this.deepLimit : initialLimit;
 
         let cached = this.getFromCache(query);
         if (cached && cached.fetchedLimit >= desiredLimit) {
-                this.schedulePrefetches(query, cached.fetchedLimit);
+            this.scheduleDeepPrefetch(query, cached.fetchedLimit);
             return cached.value;
         }
 
-        // Keep typing smooth: debounce only initial tier requests.
+        // If user paginates to page 2 while initial debounce is pending,
+        // fast-track deep fetch now so pagination has room.
+        let shouldFastTrackDeep = page >= 2 && this.pendingTimer && this.pendingQuery === query;
+        if (shouldFastTrackDeep) {
+            this.clearPendingDebounce([]);
+            let deepResult = await this.fetchAndCache(query, this.deepLimit);
+            return deepResult;
+        }
+
         let result;
-        if (desiredLimit <= this.initialLimit) {
+        if (desiredLimit <= initialLimit) {
             result = await this.debouncedFetch(query, desiredLimit);
         } else {
             result = await this.fetchAndCache(query, desiredLimit);
         }
 
-        this.schedulePrefetches(query, desiredLimit);
+        this.scheduleDeepPrefetch(query, desiredLimit);
         return result;
     }
 
-    schedulePrefetches(query, currentLimit) {
-        if (currentLimit < this.warmLimit) {
-            this.schedulePrefetch(query, this.warmLimit, 250);
+    clearPendingDebounce(resolvedValue = []) {
+        if (this.pendingTimer) {
+            clearTimeout(this.pendingTimer);
+            this.pendingTimer = null;
         }
-        if (currentLimit >= this.warmLimit && currentLimit < this.deepLimit) {
-            // Deeper pages should be ready if user keeps exploring.
-            this.schedulePrefetch(query, this.deepLimit, 1200);
+        if (this.pendingResolvers.length > 0) {
+            this.pendingResolvers.forEach(r => r(resolvedValue));
+            this.pendingResolvers = [];
         }
+        this.pendingQuery = "";
+        this.pendingLimit = 0;
     }
 
-    schedulePrefetch(query, targetLimit, delayMs) {
-        const timerKey = `${query}::${targetLimit}`;
+    scheduleDeepPrefetch(query, currentLimit) {
+        if (currentLimit >= this.deepLimit) {
+            return;
+        }
+
+        const timerKey = `${query}::deep`;
         if (this.prefetchTimers.has(timerKey)) {
             return;
         }
@@ -85,52 +98,45 @@ export default class HuggingFaceSearch {
         let timer = setTimeout(async () => {
             this.prefetchTimers.delete(timerKey);
 
-            // Only prefetch for the currently active query.
             if (this.latestQuery !== query) {
                 return;
             }
 
             let latest = this.getFromCache(query);
-            if (latest && latest.fetchedLimit >= targetLimit) {
+            if (latest && latest.fetchedLimit >= this.deepLimit) {
                 return;
             }
 
             try {
-                await this.fetchAndCache(query, targetLimit);
+                await this.fetchAndCache(query, this.deepLimit);
             } catch (error) {
-                console.error(`[HuggingFaceSearch] prefetch ${targetLimit} failed:`, error);
+                console.error("[HuggingFaceSearch] deep prefetch failed:", error);
             }
-        }, delayMs);
+        }, this.deepPrefetchDelayMs);
 
         this.prefetchTimers.set(timerKey, timer);
     }
 
     async debouncedFetch(query, limit) {
         return await new Promise(resolve => {
-            // Resolve previously queued debounced requests so callers don't hang.
-            if (this.pendingResolvers.length > 0) {
-                this.pendingResolvers.forEach(r => r([]));
-                this.pendingResolvers = [];
-            }
-
-            if (this.pendingTimer) {
-                clearTimeout(this.pendingTimer);
-                this.pendingTimer = null;
-            }
+            this.clearPendingDebounce([]);
 
             this.pendingQuery = query;
+            this.pendingLimit = limit;
             this.pendingResolvers.push(resolve);
 
             this.pendingTimer = setTimeout(async () => {
                 let queuedResolvers = this.pendingResolvers;
                 let queuedQuery = this.pendingQuery;
+                let queuedLimit = this.pendingLimit;
 
                 this.pendingResolvers = [];
                 this.pendingTimer = null;
                 this.pendingQuery = "";
+                this.pendingLimit = 0;
 
                 try {
-                    let result = await this.fetchAndCache(queuedQuery, limit);
+                    let result = await this.fetchAndCache(queuedQuery, queuedLimit);
                     queuedResolvers.forEach(r => r(result));
                 } catch (error) {
                     console.error("[HuggingFaceSearch] fetch failed:", error);
@@ -169,15 +175,11 @@ export default class HuggingFaceSearch {
                 return [];
             }
 
-            // Basic validation: keep object-shaped items with string ids.
             let result = payload
                 .filter(item => item && typeof item === "object" && typeof item.id === "string")
                 .map(item => ({ id: item.id }));
 
             this.setCache(query, result, limit);
-            if (limit === this.warmLimit) {
-                this.schedulePrefetch(query, this.deepLimit, 1000);
-            }
             return result;
         })();
 
@@ -207,7 +209,6 @@ export default class HuggingFaceSearch {
     setCache(query, value, fetchedLimit) {
         let previous = this.cache.get(query);
         if (previous && previous.fetchedLimit > fetchedLimit) {
-            // Never downgrade to a smaller limit response.
             return;
         }
 
@@ -217,7 +218,6 @@ export default class HuggingFaceSearch {
             expiresAt: Date.now() + this.cacheTtlMs,
         });
 
-        // Keep a simple FIFO cap to avoid unbounded memory growth.
         while (this.cache.size > this.maxCacheSize) {
             let oldestKey = this.cache.keys().next().value;
             this.cache.delete(oldestKey);

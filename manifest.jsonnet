@@ -10,7 +10,7 @@ local icons() = {
 };
 
 local name = 'HF Search Extension';
-local version = '2.0.3';
+local version = '0.1.0';
 local keyword = 'hf';
 local description = 'HF Search Extension - the ultimate search extension for Hugging Face';
 

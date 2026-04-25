@@ -50,7 +50,17 @@ export class RustSearchOmnibox {
 
         if (!enableLegacyRustSearch && huggingFaceSearcher) {
             function huggingFaceRepoUrl(value) {
-                let repo = (value || "").trim().replace(/^\/+|\/+$/g, "");
+                let raw = (value || "").trim();
+                if (!raw) {
+                    return null;
+                }
+
+                // If it's already a URL, keep it as-is.
+                if (/^https?:\/\//i.test(raw)) {
+                    return raw;
+                }
+
+                let repo = raw.replace(/^\/+|\/+$/g, "");
                 if (!repo) {
                     return null;
                 }
@@ -68,7 +78,7 @@ export class RustSearchOmnibox {
                 },
                 onFormat: (_, model) => {
                     return {
-                        content: `https://huggingface.co/${model.id}`,
+                        content: model.id,
                         description: `<match>${Compat.escape(model.id)}</match>`,
                     };
                 },
@@ -82,6 +92,9 @@ export class RustSearchOmnibox {
                         content: url,
                         description: `Open Hugging Face repo <match>${Compat.escape(keyword)}</match>`,
                     }];
+                },
+                beforeNavigate: async (_, content) => {
+                    return huggingFaceRepoUrl(content) || content;
                 },
                 onEmptyNavigate: async (content, disposition) => {
                     let url = huggingFaceRepoUrl(content);
