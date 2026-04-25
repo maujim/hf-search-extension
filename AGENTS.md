@@ -2,9 +2,18 @@
 
 Guidance for coding agents working in this repository.
 
+## Project status (important)
+
+This repository is currently being **overwritten/migrated** from the original Rust Search Extension into a **Hugging Face Search Extension**.
+
+- Treat Hugging Face search behavior and APIs as the primary product direction.
+- Legacy Rust-search code, commands, and docs may still exist during migration and can be stale.
+- Do **not** assume all Rust-specific docs/features are in active scope unless the task explicitly asks for them.
+- When there is conflict between old Rust-oriented docs and current Hugging Face work, prioritize Hugging Face behavior and recent task instructions.
+
 ## Project overview
 
-This repo contains the **Rust Search Extension** browser extension and supporting tooling:
+Historically this repo contains the **Rust Search Extension** browser extension and supporting tooling:
 
 - `extension/`: main browser extension code (JS modules, search logic, content scripts, static index files)
 - `manage/`: Rust app that renders extension management/settings HTML
@@ -95,7 +104,7 @@ Use `--help` for each subcommand before running generation tasks.
 ## Hugging Face query classes (extension)
 
 - Supported query-class syntax in omnibox: `@model`, `@dataset`, `@space`, `@org`, `@user`, `@paper`, `@collection`, `@bucket`.
-- Query format: `@keyword search terms` (example: `@dataset llama`).
+- Query format: `@keyword search terms` or `search terms @keyword` (example: `@dataset llama`, `llama @dataset`).
 - No `@keyword` should keep default mixed Hugging Face search behavior (`model` + `dataset`).
 - Endpoint mapping strategy:
   - `@model` → `GET /api/models`
