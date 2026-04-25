@@ -87,6 +87,11 @@ Available subcommands include:
 
 Use `--help` for each subcommand before running generation tasks.
 
+## External API docs reference
+
+- Hugging Face API OpenAPI spec: `https://huggingface.co/.well-known/openapi.json`
+- For Hugging Face API integration work, use this URL as the canonical docs entrypoint before implementing endpoints.
+
 ## Editing conventions
 
 - Keep JS as ESM modules, semicolons, and existing formatting style.
