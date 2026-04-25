@@ -1,7 +1,6 @@
 // Format: jsonnetfmt -i manifest.jsonnet
 
 local manifest_v3 = import 'core/manifest_v3.libsonnet';
-local utils = import 'core/utils.libsonnet';
 
 local icons() = {
   '16': 'assets/icon-16.png',
@@ -12,63 +11,22 @@ local icons() = {
 local name = 'HF Search Extension';
 local version = '0.1.0';
 local keyword = 'hf';
-local description = 'HF Search Extension - the ultimate search extension for Hugging Face';
+local description = 'HF Search Extension - search Hugging Face from your address bar';
 
 local browser = std.extVar('browser');
 
-local host_permissions = ['*://crates.io/api/v1/crates/*', 'https://rust.extension.sh/*'];
-local optional_host_permissions = ['file:///*'];
 local json = if std.member(['chrome', 'edge'], browser) then
   manifest_v3.new(name, keyword, description, version, service_worker='service-worker.js')
 else
-  // Firefox does not support service worker yet.
   manifest_v3.new(name, keyword, description, version, background_page='firefox-bg.html') { browser_specific_settings: {
-    // Firefox need extension id to be set in the manifest.
-    // https://extensionworkshop.com/documentation/develop/extensions-and-the-add-on-id/
     gecko: {
       id: '{04188724-64d3-497b-a4fd-7caffe6eab29}',
       strict_min_version: '109.0',
     },
-  } }
-;
+  } };
 
-json
-.addWebAccessibleResources(
-  resources=['script/*.js', 'wasm/*.wasm', 'assets/*.svg'],
-  matches=[
-    '*://docs.rs/*',
-    '*://doc.rust-lang.org/*',
-  ],
-) {
-  description: 'A handy browser extension to search Hugging Face models, datasets, and more from the address bar instantly!',
-  // Intentionally no fixed Chrome key during rapid local iteration.
-  // This avoids extension-id collisions with previously loaded builds.
+json {
+  description: 'A browser extension to search Hugging Face models, datasets, and more from the address bar.',
 }
-.addHostPermissions(host_permissions)
-.addOptionalHostPermissions(optional_host_permissions)
 .addIcons(icons())
-.addPermissions(['storage', 'unlimitedStorage', 'alarms'])
-.setOptionsUi('manage/index.html')
-.addContentScript(
-  matches=['*://docs.rs/*'],
-  js=['content-script-bundle.js'] + utils.js_files('script', ['lib', 'docs-rs', 'rust-src-navigate', 'semver']),
-  css=['script/docs-rs.css', 'script/details-toggle.css'],
-)
-.addContentScript(
-  matches=['*://doc.rust-lang.org/*'],
-  js=['content-script-bundle.js'] + utils.js_files('script', ['lib', 'doc-rust-lang-org', 'rust-src-navigate']),
-  css=['script/doc-rust-lang-org.css', 'script/details-toggle.css'],
-  exclude_matches=['*://doc.rust-lang.org/nightly/nightly-rustc/*'],
-)
-.addContentScript(
-  matches=['*://rust.extension.sh/update'],
-  js=['content-script-bundle.js'] + utils.js_files('script', ['rust-extension-sh']),
-  css=[],
-).addContentScript(
-  matches=[
-    '*://docs.rs/*',
-    '*://doc.rust-lang.org/*',
-  ],
-  js=['content-script-bundle.js'] + utils.js_files('script', ['lib', 'macro-railroad', 'macro-railroad-wasm']),
-  css=['script/macro-railroad.css'],
-)
+.addPermissions(['storage'])

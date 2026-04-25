@@ -4,38 +4,41 @@ Guidance for coding agents working in this repository.
 
 ## Project status (important)
 
-This repository is currently being **overwritten/migrated** from the original Rust Search Extension into a **Hugging Face Search Extension**.
+This repository is now **HF-only** (Hugging Face Search Extension).
 
-- Treat Hugging Face search behavior and APIs as the primary product direction.
-- Legacy Rust-search code, commands, and docs may still exist during migration and can be stale.
-- Do **not** assume all Rust-specific docs/features are in active scope unless the task explicitly asks for them.
-- When there is conflict between old Rust-oriented docs and current Hugging Face work, prioritize Hugging Face behavior and recent task instructions.
+- Prioritize Hugging Face omnibox search behavior and API integration.
+- Treat legacy Rust-search concepts as removed unless explicitly reintroduced.
+- Preserve the lightweight extension architecture (omnibox core + HF search module).
 
-## Project overview
+## Active project layout
 
-Historically this repo contains the **Rust Search Extension** browser extension and supporting tooling:
+- `extension/`: browser extension runtime
+  - `extension/search/huggingface.js`: HF API search implementation
+  - `extension/main.js`: runtime wiring
+  - `extension/lib.js`: omnibox behavior/pattern layer
+  - `extension/service-worker.js`: extension bootstrap
+  - `extension/core/*`: shared omnibox framework
+- `manifest.jsonnet`: manifest source
+- `Makefile`: extension build/pack entry points
+- `HF_SEARCH_QUERY_CLASSES.md`: query-class behavior reference
+- `core/` (submodule): shared manifest/build helpers
 
-- `extension/`: main browser extension code (JS modules, search logic, content scripts, static index files)
-- `manage/`: Rust app that renders extension management/settings HTML
-- `rust/`: Rust CLI for generating search/index data files
-- `macro-railroad/`: Rust + wasm module used by docs rendering features
-- `manifest.jsonnet`: source for browser manifests
-- `docs/`: website/docs content
+Removed from active scope:
+- Rust index generation pipeline
+- manage UI generator
+- macro-railroad features
+- Rust docs/content-script integrations
 
 ## First-time setup
 
-1. Initialize submodules (required):
+1. Initialize submodules:
    ```bash
    git submodule update --init --recursive
    ```
-   The `core/` submodule provides shared make/jsonnet helpers.
-
 2. Install required tools:
    - `jsonnet`
    - `esbuild`
    - `web-ext`
-   - Rust toolchain (`cargo`, `rustc`)
-   - `wasm-pack` (for `macro-railroad` builds)
 
 ## Common build commands
 
@@ -55,61 +58,27 @@ From repo root:
   make pack edge
   ```
 
-- Rebuild manage pages:
-  ```bash
-  make manage
-  ```
-  or in `manage/`:
-  ```bash
-  cargo run -- -w
-  ```
-
-- Rebundle content script helper:
-  ```bash
-  make bundle
-  ```
-
-- Rebuild macro railroad wasm artifacts:
-  ```bash
-  make macro-railroad
-  ```
-
-## Data/index generation
-
-The Rust CLI in `rust/` updates generated index files consumed by `extension/`.
-
-Run from `rust/`:
-```bash
-cargo run -- <subcommand> [options]
-```
-
-Available subcommands include:
-- `advisory`
-- `crates`
-- `books`
-- `caniuse`
-- `lints`
-- `labels`
-- `rfcs`
-- `rustc`
-- `targets`
-
-Use `--help` for each subcommand before running generation tasks.
-
 ## External API docs reference
 
 - Hugging Face API OpenAPI spec: `https://huggingface.co/.well-known/openapi.json`
-- For Hugging Face API integration work, use this URL as the canonical docs entrypoint before implementing endpoints.
+- Use this as the canonical API entrypoint before implementing or changing endpoints.
 
 ## Hugging Face query classes (extension)
 
-- Supported query-class syntax in omnibox: `@model`, `@dataset`, `@space`, `@org`, `@user`, `@paper`, `@collection`, `@bucket`.
-- Query format: `@keyword search terms` or `search terms @keyword` (example: `@dataset llama`, `llama @dataset`).
-- No `@keyword` should keep default mixed Hugging Face search behavior (`model` + `dataset`).
-- Endpoint mapping strategy:
-  - `@model` → `GET /api/models`
-  - `@dataset` → `GET /api/datasets`
-  - others (`@space/@org/@user/@paper/@collection/@bucket`) → `GET /api/quicksearch` with `type=<keyword>`.
+Supported query-class syntax in omnibox:
+- `@model`, `@dataset`, `@space`, `@org`, `@user`, `@paper`, `@collection`, `@bucket`
+
+Query format:
+- `@keyword search terms` or `search terms @keyword`
+- Examples: `@dataset llama`, `llama @dataset`
+
+Behavior:
+- No `@keyword` => default mixed HF search (`model` + `dataset`)
+
+Endpoint mapping strategy:
+- `@model` → `GET /api/models`
+- `@dataset` → `GET /api/datasets`
+- others (`@space/@org/@user/@paper/@collection/@bucket`) → `GET /api/quicksearch` with `type=<keyword>`
 
 ## Editing conventions
 
@@ -119,22 +88,19 @@ Use `--help` for each subcommand before running generation tasks.
   ```bash
   jsonnetfmt -i manifest.jsonnet
   ```
-- Prefer updating source templates/configs over directly editing generated outputs, unless the repo intentionally tracks the generated file.
+- Prefer updating source files/config over generated outputs.
 
 ## Validation checklist before finishing
 
 Run relevant checks for touched areas:
 
-- JS/extension changes: run corresponding `make <browser>` build
-- `manage/` changes: `cargo check` (or `cargo run -- -w`)
-- `rust/` changes: `cargo check` in `rust/`
-- `macro-railroad/` changes: `cargo check` and/or `make macro-railroad`
-
-Then verify git diff is scoped to intended files only.
+- Extension/runtime changes: run at least one build (`make chrome`), ideally browser targets you touched.
+- Manifest/build changes: run `make chrome` and confirm `extension/manifest.json` updates correctly.
+- Verify git diff is scoped to intended files only.
 
 ## Safety and scope
 
 - Do not commit secrets or tokens.
 - Do not alter license files.
 - Preserve dual-license headers/structure where present.
-- If behavior changes are non-trivial, document impact in PR description or relevant docs.
+- If behavior changes are non-trivial, summarize impact in PR description/docs.
