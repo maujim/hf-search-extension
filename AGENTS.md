@@ -92,6 +92,16 @@ Use `--help` for each subcommand before running generation tasks.
 - Hugging Face API OpenAPI spec: `https://huggingface.co/.well-known/openapi.json`
 - For Hugging Face API integration work, use this URL as the canonical docs entrypoint before implementing endpoints.
 
+## Hugging Face query classes (extension)
+
+- Supported query-class syntax in omnibox: `@model`, `@dataset`, `@space`, `@org`, `@user`, `@paper`, `@collection`, `@bucket`.
+- Query format: `@keyword search terms` (example: `@dataset llama`).
+- No `@keyword` should keep default mixed Hugging Face search behavior (`model` + `dataset`).
+- Endpoint mapping strategy:
+  - `@model` → `GET /api/models`
+  - `@dataset` → `GET /api/datasets`
+  - others (`@space/@org/@user/@paper/@collection/@bucket`) → `GET /api/quicksearch` with `type=<keyword>`.
+
 ## Editing conventions
 
 - Keep JS as ESM modules, semicolons, and existing formatting style.

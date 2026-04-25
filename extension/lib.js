@@ -49,6 +49,22 @@ export class RustSearchOmnibox {
         }
 
         if (!enableLegacyRustSearch && huggingFaceSearcher) {
+            function parseHfQueryClass(query) {
+                let raw = (query || "").trim();
+                let match = raw.match(/^@(model|dataset|space|org|user|paper|collection|bucket)\s+(.*)$/i);
+                if (!match) {
+                    return {
+                        queryClass: null,
+                        keyword: raw,
+                    };
+                }
+
+                return {
+                    queryClass: match[1].toLowerCase(),
+                    keyword: (match[2] || "").trim(),
+                };
+            }
+
             function huggingFaceRepoUrl(value, repoType = "model") {
                 let raw = (value || "").trim();
                 if (!raw) {
@@ -75,6 +91,12 @@ export class RustSearchOmnibox {
                         return `https://huggingface.co/datasets/${encodedRepo}`;
                     case "space":
                         return `https://huggingface.co/spaces/${encodedRepo}`;
+                    case "paper":
+                        return `https://huggingface.co/papers/${encodedRepo}`;
+                    case "collection":
+                        return `https://huggingface.co/collections/${encodedRepo}`;
+                    case "bucket":
+                        return `https://huggingface.co/bucket/${encodedRepo}`;
                     default:
                         return `https://huggingface.co/${encodedRepo}`;
                 }
@@ -86,6 +108,16 @@ export class RustSearchOmnibox {
                         return "Dataset";
                     case "space":
                         return "Space";
+                    case "org":
+                        return "Org";
+                    case "user":
+                        return "User";
+                    case "paper":
+                        return "Paper";
+                    case "collection":
+                        return "Collection";
+                    case "bucket":
+                        return "Bucket";
                     default:
                         return "Model";
                 }
@@ -104,21 +136,23 @@ export class RustSearchOmnibox {
                     };
                 },
                 onAppend: async (query) => {
-                    let keyword = (query || "").trim();
-                    let url = huggingFaceRepoUrl(keyword);
+                    let { queryClass, keyword } = parseHfQueryClass(query);
+                    let url = huggingFaceRepoUrl(keyword, queryClass || "model");
                     if (!url) {
                         return [];
                     }
                     return [{
                         content: url,
-                        description: `Open Hugging Face repo <match>${Compat.escape(keyword)}</match>`,
+                        description: `Open Hugging Face ${repoTypeLabel(queryClass || "model").toLowerCase()} <match>${Compat.escape(keyword)}</match>`,
                     }];
                 },
                 beforeNavigate: async (_, content) => {
-                    return huggingFaceRepoUrl(content) || content;
+                    let { queryClass, keyword } = parseHfQueryClass(content);
+                    return huggingFaceRepoUrl(keyword, queryClass || "model") || content;
                 },
                 onEmptyNavigate: async (content, disposition) => {
-                    let url = huggingFaceRepoUrl(content);
+                    let { queryClass, keyword } = parseHfQueryClass(content);
+                    let url = huggingFaceRepoUrl(keyword, queryClass || "model");
                     if (!url) {
                         return;
                     }

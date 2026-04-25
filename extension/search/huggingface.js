@@ -3,6 +3,28 @@ const API_BY_REPO_TYPE = Object.freeze({
     dataset: "datasets",
 });
 
+const QUICKSEARCH_KEY_BY_QUERY_CLASS = Object.freeze({
+    space: "spaces",
+    org: "orgs",
+    user: "users",
+    paper: "papers",
+    collection: "collections",
+    bucket: "buckets",
+});
+
+const QUERY_CLASSES = Object.freeze([
+    "model",
+    "dataset",
+    "space",
+    "org",
+    "user",
+    "paper",
+    "collection",
+    "bucket",
+]);
+
+const QUERY_CLASS_REGEX = /^@(model|dataset|space|org|user|paper|collection|bucket)\s+(.*)$/i;
+
 export default class HuggingFaceSearch {
     constructor({
         debounceMs = 250,
@@ -24,11 +46,11 @@ export default class HuggingFaceSearch {
 
         this.repoTypes = this.normalizeRepoTypes(repoTypes);
 
-        // query -> { value: [{id, type}], fetchedLimit, expiresAt }
+        // cacheKey -> { value: [{id, type}], fetchedLimit, expiresAt }
         this.cache = new Map();
-        // `${query}::${limit}` -> Promise
+        // `${cacheKey}::${limit}` -> Promise
         this.inFlight = new Map();
-        // `${query}::deep` -> timerId
+        // `${cacheKey}::deep` -> timerId
         this.prefetchTimers = new Map();
 
         this.latestQuery = "";
@@ -36,6 +58,7 @@ export default class HuggingFaceSearch {
         // Debounce queue for "typing" searches.
         this.pendingQuery = "";
         this.pendingLimit = 0;
+        this.pendingParsed = null;
         this.pendingTimer = null;
         this.pendingResolvers = [];
     }
@@ -54,13 +77,48 @@ export default class HuggingFaceSearch {
         return normalizedTypes;
     }
 
+    parseQuery(input) {
+        let rawQuery = (input || "").trim();
+        if (!rawQuery) {
+            return {
+                query: "",
+                queryClass: null,
+                cacheKey: "",
+            };
+        }
+
+        let match = rawQuery.match(QUERY_CLASS_REGEX);
+        if (!match) {
+            return {
+                query: rawQuery,
+                queryClass: null,
+                cacheKey: rawQuery,
+            };
+        }
+
+        let queryClass = (match[1] || "").toLowerCase();
+        if (!QUERY_CLASSES.includes(queryClass)) {
+            return {
+                query: rawQuery,
+                queryClass: null,
+                cacheKey: rawQuery,
+            };
+        }
+
+        return {
+            query: (match[2] || "").trim(),
+            queryClass,
+            cacheKey: rawQuery,
+        };
+    }
+
     async search(input, context = {}) {
-        let query = (input || "").trim();
-        if (!query) {
+        let parsed = this.parseQuery(input);
+        if (!parsed.query) {
             return [];
         }
 
-        this.latestQuery = query;
+        this.latestQuery = parsed.cacheKey;
 
         let page = Math.max(1, context.page || 1);
         let pageSize = Math.max(1, context.pageSize || 8);
@@ -68,29 +126,29 @@ export default class HuggingFaceSearch {
         let requiresDeep = page > 2;
         let desiredLimit = requiresDeep ? this.deepLimit : initialLimit;
 
-        let cached = this.getFromCache(query);
+        let cached = this.getFromCache(parsed.cacheKey);
         if (cached && cached.fetchedLimit >= desiredLimit) {
-            this.scheduleDeepPrefetch(query, cached.fetchedLimit);
+            this.scheduleDeepPrefetch(parsed.cacheKey, cached.fetchedLimit, parsed);
             return cached.value;
         }
 
         // If user paginates to page 2 while initial debounce is pending,
         // fast-track deep fetch now so pagination has room.
-        let shouldFastTrackDeep = page >= 2 && this.pendingTimer && this.pendingQuery === query;
+        let shouldFastTrackDeep = page >= 2 && this.pendingTimer && this.pendingQuery === parsed.cacheKey;
         if (shouldFastTrackDeep) {
             this.clearPendingDebounce([]);
-            let deepResult = await this.fetchAndCache(query, this.deepLimit);
+            let deepResult = await this.fetchAndCache(parsed.cacheKey, this.deepLimit, parsed);
             return deepResult;
         }
 
         let result;
         if (desiredLimit <= initialLimit) {
-            result = await this.debouncedFetch(query, desiredLimit);
+            result = await this.debouncedFetch(parsed.cacheKey, desiredLimit, parsed);
         } else {
-            result = await this.fetchAndCache(query, desiredLimit);
+            result = await this.fetchAndCache(parsed.cacheKey, desiredLimit, parsed);
         }
 
-        this.scheduleDeepPrefetch(query, desiredLimit);
+        this.scheduleDeepPrefetch(parsed.cacheKey, desiredLimit, parsed);
         return result;
     }
 
@@ -105,14 +163,15 @@ export default class HuggingFaceSearch {
         }
         this.pendingQuery = "";
         this.pendingLimit = 0;
+        this.pendingParsed = null;
     }
 
-    scheduleDeepPrefetch(query, currentLimit) {
+    scheduleDeepPrefetch(cacheKey, currentLimit, parsed) {
         if (currentLimit >= this.deepLimit) {
             return;
         }
 
-        const timerKey = `${query}::deep`;
+        const timerKey = `${cacheKey}::deep`;
         if (this.prefetchTimers.has(timerKey)) {
             return;
         }
@@ -120,17 +179,17 @@ export default class HuggingFaceSearch {
         let timer = setTimeout(async () => {
             this.prefetchTimers.delete(timerKey);
 
-            if (this.latestQuery !== query) {
+            if (this.latestQuery !== cacheKey) {
                 return;
             }
 
-            let latest = this.getFromCache(query);
+            let latest = this.getFromCache(cacheKey);
             if (latest && latest.fetchedLimit >= this.deepLimit) {
                 return;
             }
 
             try {
-                await this.fetchAndCache(query, this.deepLimit);
+                await this.fetchAndCache(cacheKey, this.deepLimit, parsed);
             } catch (error) {
                 console.error("[HuggingFaceSearch] deep prefetch failed:", error);
             }
@@ -139,26 +198,29 @@ export default class HuggingFaceSearch {
         this.prefetchTimers.set(timerKey, timer);
     }
 
-    async debouncedFetch(query, limit) {
+    async debouncedFetch(cacheKey, limit, parsed) {
         return await new Promise(resolve => {
             this.clearPendingDebounce([]);
 
-            this.pendingQuery = query;
+            this.pendingQuery = cacheKey;
             this.pendingLimit = limit;
+            this.pendingParsed = parsed;
             this.pendingResolvers.push(resolve);
 
             this.pendingTimer = setTimeout(async () => {
                 let queuedResolvers = this.pendingResolvers;
                 let queuedQuery = this.pendingQuery;
                 let queuedLimit = this.pendingLimit;
+                let queuedParsed = this.pendingParsed;
 
                 this.pendingResolvers = [];
                 this.pendingTimer = null;
                 this.pendingQuery = "";
                 this.pendingLimit = 0;
+                this.pendingParsed = null;
 
                 try {
-                    let result = await this.fetchAndCache(queuedQuery, queuedLimit);
+                    let result = await this.fetchAndCache(queuedQuery, queuedLimit, queuedParsed);
                     queuedResolvers.forEach(r => r(result));
                 } catch (error) {
                     console.error("[HuggingFaceSearch] fetch failed:", error);
@@ -199,6 +261,62 @@ export default class HuggingFaceSearch {
             }));
     }
 
+    extractQuicksearchId(item, queryClass) {
+        switch (queryClass) {
+            case "space":
+                return item.id || item.name || item.slug || null;
+            case "org":
+                return item.name || item.id || null;
+            case "user":
+                return item.user || item.name || item.id || null;
+            case "paper":
+                return item._id || item.id || null;
+            case "collection":
+                return item._id || item.id || item.slug || null;
+            case "bucket":
+                return item.id || item.name || item.slug || item._id || null;
+            default:
+                return item.id || item.name || item.slug || item._id || null;
+        }
+    }
+
+    async fetchQuicksearchType(query, limit, queryClass) {
+        let collectionKey = QUICKSEARCH_KEY_BY_QUERY_CLASS[queryClass];
+        if (!collectionKey) {
+            return [];
+        }
+
+        const url = `https://huggingface.co/api/quicksearch?limit=${limit}&q=${encodeURIComponent(query)}&type=${encodeURIComponent(queryClass)}`;
+        let response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "Accept": "application/json",
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`[${queryClass}] HTTP ${response.status}`);
+        }
+
+        let payload = await response.json();
+        let items = Array.isArray(payload?.[collectionKey]) ? payload[collectionKey] : [];
+
+        return items
+            .filter(item => item && typeof item === "object")
+            .map(item => {
+                let id = this.extractQuicksearchId(item, queryClass);
+                if (!id) {
+                    return null;
+                }
+
+                return {
+                    id: String(id),
+                    type: queryClass,
+                };
+            })
+            .filter(Boolean);
+    }
+
     mergeRoundRobin(groups) {
         let merged = [];
         let cursor = 0;
@@ -220,20 +338,26 @@ export default class HuggingFaceSearch {
         return merged;
     }
 
-    async fetchAndCache(query, limit) {
-        let existing = this.getFromCache(query);
+    async fetchAndCache(cacheKey, limit, parsed) {
+        let existing = this.getFromCache(cacheKey);
         if (existing && existing.fetchedLimit >= limit) {
             return existing.value;
         }
 
-        const key = `${query}::${limit}`;
+        const key = `${cacheKey}::${limit}`;
         if (this.inFlight.has(key)) {
             return await this.inFlight.get(key);
         }
 
         const request = (async () => {
+            let activeTypes = parsed?.queryClass ? [parsed.queryClass] : this.repoTypes;
             let responses = await Promise.allSettled(
-                this.repoTypes.map(repoType => this.fetchRepoType(query, limit, repoType))
+                activeTypes.map(repoType => {
+                    if (API_BY_REPO_TYPE[repoType]) {
+                        return this.fetchRepoType(parsed.query, limit, repoType);
+                    }
+                    return this.fetchQuicksearchType(parsed.query, limit, repoType);
+                })
             );
 
             let groupedResults = responses.map((result, index) => {
@@ -241,13 +365,13 @@ export default class HuggingFaceSearch {
                     return result.value;
                 }
 
-                let repoType = this.repoTypes[index] || "unknown";
+                let repoType = activeTypes[index] || "unknown";
                 console.error(`[HuggingFaceSearch] ${repoType} fetch failed:`, result.reason);
                 return [];
             });
 
             let mergedResult = this.mergeRoundRobin(groupedResults);
-            this.setCache(query, mergedResult, limit);
+            this.setCache(cacheKey, mergedResult, limit);
             return mergedResult;
         })();
 
