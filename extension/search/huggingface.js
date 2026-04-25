@@ -1,3 +1,8 @@
+const API_BY_REPO_TYPE = Object.freeze({
+    model: "models",
+    dataset: "datasets",
+});
+
 export default class HuggingFaceSearch {
     constructor({
         debounceMs = 250,
@@ -6,6 +11,7 @@ export default class HuggingFaceSearch {
         limit = 10,
         deepLimit = 1000,
         deepPrefetchDelayMs = 900,
+        repoTypes = ["model", "dataset"],
     } = {}) {
         this.debounceMs = debounceMs;
         this.cacheTtlMs = cacheTtlMs;
@@ -16,7 +22,9 @@ export default class HuggingFaceSearch {
         this.deepLimit = deepLimit;
         this.deepPrefetchDelayMs = deepPrefetchDelayMs;
 
-        // query -> { value: [{id}], fetchedLimit, expiresAt }
+        this.repoTypes = this.normalizeRepoTypes(repoTypes);
+
+        // query -> { value: [{id, type}], fetchedLimit, expiresAt }
         this.cache = new Map();
         // `${query}::${limit}` -> Promise
         this.inFlight = new Map();
@@ -30,6 +38,20 @@ export default class HuggingFaceSearch {
         this.pendingLimit = 0;
         this.pendingTimer = null;
         this.pendingResolvers = [];
+    }
+
+    normalizeRepoTypes(repoTypes) {
+        let rawTypes = Array.isArray(repoTypes) ? repoTypes : ["model", "dataset"];
+
+        let normalizedTypes = [...new Set(rawTypes
+            .map(type => String(type || "").trim().toLowerCase()))]
+            .filter(type => API_BY_REPO_TYPE[type]);
+
+        if (normalizedTypes.length === 0) {
+            return ["model"];
+        }
+
+        return normalizedTypes;
     }
 
     async search(input, context = {}) {
@@ -146,6 +168,58 @@ export default class HuggingFaceSearch {
         });
     }
 
+    async fetchRepoType(query, limit, repoType) {
+        const endpoint = API_BY_REPO_TYPE[repoType];
+        if (!endpoint) {
+            return [];
+        }
+
+        const url = `https://huggingface.co/api/${endpoint}?limit=${limit}&search=${encodeURIComponent(query)}`;
+        let response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "Accept": "application/json",
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`[${repoType}] HTTP ${response.status}`);
+        }
+
+        let payload = await response.json();
+        if (!Array.isArray(payload)) {
+            return [];
+        }
+
+        return payload
+            .filter(item => item && typeof item === "object" && typeof item.id === "string")
+            .map(item => ({
+                id: item.id,
+                type: repoType,
+            }));
+    }
+
+    mergeRoundRobin(groups) {
+        let merged = [];
+        let cursor = 0;
+
+        while (true) {
+            let appended = false;
+            for (let group of groups) {
+                if (cursor < group.length) {
+                    merged.push(group[cursor]);
+                    appended = true;
+                }
+            }
+            if (!appended) {
+                break;
+            }
+            cursor++;
+        }
+
+        return merged;
+    }
+
     async fetchAndCache(query, limit) {
         let existing = this.getFromCache(query);
         if (existing && existing.fetchedLimit >= limit) {
@@ -158,29 +232,23 @@ export default class HuggingFaceSearch {
         }
 
         const request = (async () => {
-            const url = `https://huggingface.co/api/models?limit=${limit}&search=${encodeURIComponent(query)}`;
-            let response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Accept": "application/json",
-                },
+            let responses = await Promise.allSettled(
+                this.repoTypes.map(repoType => this.fetchRepoType(query, limit, repoType))
+            );
+
+            let groupedResults = responses.map((result, index) => {
+                if (result.status === "fulfilled") {
+                    return result.value;
+                }
+
+                let repoType = this.repoTypes[index] || "unknown";
+                console.error(`[HuggingFaceSearch] ${repoType} fetch failed:`, result.reason);
+                return [];
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            let payload = await response.json();
-            if (!Array.isArray(payload)) {
-                return [];
-            }
-
-            let result = payload
-                .filter(item => item && typeof item === "object" && typeof item.id === "string")
-                .map(item => ({ id: item.id }));
-
-            this.setCache(query, result, limit);
-            return result;
+            let mergedResult = this.mergeRoundRobin(groupedResults);
+            this.setCache(query, mergedResult, limit);
+            return mergedResult;
         })();
 
         this.inFlight.set(key, request);

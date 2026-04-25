@@ -49,7 +49,7 @@ export class RustSearchOmnibox {
         }
 
         if (!enableLegacyRustSearch && huggingFaceSearcher) {
-            function huggingFaceRepoUrl(value) {
+            function huggingFaceRepoUrl(value, repoType = "model") {
                 let raw = (value || "").trim();
                 if (!raw) {
                     return null;
@@ -69,17 +69,38 @@ export class RustSearchOmnibox {
                     .filter(Boolean)
                     .map(part => encodeURIComponent(part))
                     .join("/");
-                return `https://huggingface.co/${encodedRepo}`;
+
+                switch (repoType) {
+                    case "dataset":
+                        return `https://huggingface.co/datasets/${encodedRepo}`;
+                    case "space":
+                        return `https://huggingface.co/spaces/${encodedRepo}`;
+                    default:
+                        return `https://huggingface.co/${encodedRepo}`;
+                }
+            }
+
+            function repoTypeLabel(repoType) {
+                switch (repoType) {
+                    case "dataset":
+                        return "Dataset";
+                    case "space":
+                        return "Space";
+                    default:
+                        return "Model";
+                }
             }
 
             omnibox.bootstrap({
                 onSearch: async (query) => {
                     return await huggingFaceSearcher.search(query);
                 },
-                onFormat: (_, model) => {
+                onFormat: (_, repo) => {
+                    let repoType = repo.type || "model";
+                    let url = huggingFaceRepoUrl(repo.id, repoType) || repo.id;
                     return {
-                        content: model.id,
-                        description: `<match>${Compat.escape(model.id)}</match>`,
+                        content: url,
+                        description: `[${repoTypeLabel(repoType)}] <match>${Compat.escape(repo.id)}</match>`,
                     };
                 },
                 onAppend: async (query) => {
