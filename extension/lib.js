@@ -51,17 +51,42 @@ export class RustSearchOmnibox {
         if (!enableLegacyRustSearch && huggingFaceSearcher) {
             function parseHfQueryClass(query) {
                 let raw = (query || "").trim();
-                let match = raw.match(/^@(model|dataset|space|org|user|paper|collection|bucket)\s+(.*)$/i);
-                if (!match) {
+                if (!raw) {
                     return {
                         queryClass: null,
-                        keyword: raw,
+                        keyword: "",
+                    };
+                }
+
+                // Strip pagination token first (e.g. "llama @dataset -").
+                let args = raw.split(/\s+/i);
+                if (args.length > 1) {
+                    let lastArg = args[args.length - 1];
+                    if (lastArg?.startsWith("-")) {
+                        args.pop();
+                        raw = args.join(" ").trim();
+                    }
+                }
+
+                let prefixMatch = raw.match(/^@(model|dataset|space|org|user|paper|collection|bucket)\s+(.*)$/i);
+                if (prefixMatch) {
+                    return {
+                        queryClass: prefixMatch[1].toLowerCase(),
+                        keyword: (prefixMatch[2] || "").trim(),
+                    };
+                }
+
+                let suffixMatch = raw.match(/^(.*?)\s+@(model|dataset|space|org|user|paper|collection|bucket)$/i);
+                if (suffixMatch) {
+                    return {
+                        queryClass: suffixMatch[2].toLowerCase(),
+                        keyword: (suffixMatch[1] || "").trim(),
                     };
                 }
 
                 return {
-                    queryClass: match[1].toLowerCase(),
-                    keyword: (match[2] || "").trim(),
+                    queryClass: null,
+                    keyword: raw,
                 };
             }
 

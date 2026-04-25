@@ -23,7 +23,8 @@ const QUERY_CLASSES = Object.freeze([
     "bucket",
 ]);
 
-const QUERY_CLASS_REGEX = /^@(model|dataset|space|org|user|paper|collection|bucket)\s+(.*)$/i;
+const QUERY_CLASS_PREFIX_REGEX = /^@(model|dataset|space|org|user|paper|collection|bucket)\s+(.*)$/i;
+const QUERY_CLASS_SUFFIX_REGEX = /^(.*?)\s+@(model|dataset|space|org|user|paper|collection|bucket)$/i;
 
 export default class HuggingFaceSearch {
     constructor({
@@ -87,27 +88,43 @@ export default class HuggingFaceSearch {
             };
         }
 
-        let match = rawQuery.match(QUERY_CLASS_REGEX);
-        if (!match) {
-            return {
-                query: rawQuery,
-                queryClass: null,
-                cacheKey: rawQuery,
-            };
+        // Keep pagination behavior stable when parsing directly from raw input.
+        let args = rawQuery.split(/\s+/i);
+        if (args.length > 1) {
+            let lastArg = args[args.length - 1];
+            if (lastArg?.startsWith("-")) {
+                args.pop();
+                rawQuery = args.join(" ").trim();
+            }
         }
 
-        let queryClass = (match[1] || "").toLowerCase();
-        if (!QUERY_CLASSES.includes(queryClass)) {
-            return {
-                query: rawQuery,
-                queryClass: null,
-                cacheKey: rawQuery,
-            };
+        let prefixMatch = rawQuery.match(QUERY_CLASS_PREFIX_REGEX);
+        if (prefixMatch) {
+            let queryClass = (prefixMatch[1] || "").toLowerCase();
+            if (QUERY_CLASSES.includes(queryClass)) {
+                return {
+                    query: (prefixMatch[2] || "").trim(),
+                    queryClass,
+                    cacheKey: rawQuery,
+                };
+            }
+        }
+
+        let suffixMatch = rawQuery.match(QUERY_CLASS_SUFFIX_REGEX);
+        if (suffixMatch) {
+            let queryClass = (suffixMatch[2] || "").toLowerCase();
+            if (QUERY_CLASSES.includes(queryClass)) {
+                return {
+                    query: (suffixMatch[1] || "").trim(),
+                    queryClass,
+                    cacheKey: rawQuery,
+                };
+            }
         }
 
         return {
-            query: (match[2] || "").trim(),
-            queryClass,
+            query: rawQuery,
+            queryClass: null,
             cacheKey: rawQuery,
         };
     }
