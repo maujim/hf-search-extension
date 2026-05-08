@@ -1,30 +1,5 @@
-const API_BY_REPO_TYPE = Object.freeze({
-    model: "models",
-    dataset: "datasets",
-});
-
-const QUICKSEARCH_KEY_BY_QUERY_CLASS = Object.freeze({
-    space: "spaces",
-    org: "orgs",
-    user: "users",
-    paper: "papers",
-    collection: "collections",
-    bucket: "buckets",
-});
-
-const QUERY_CLASSES = Object.freeze([
-    "model",
-    "dataset",
-    "space",
-    "org",
-    "user",
-    "paper",
-    "collection",
-    "bucket",
-]);
-
-const QUERY_CLASS_PREFIX_REGEX = /^@(model|dataset|space|org|user|paper|collection|bucket)\s+(.*)$/i;
-const QUERY_CLASS_SUFFIX_REGEX = /^(.*?)\s+@(model|dataset|space|org|user|paper|collection|bucket)$/i;
+import { parseQuery } from "./query-parser.js";
+import { apiEndpoint, quicksearchKey, extractQuicksearchId } from "./repo-types.js";
 
 export default class HuggingFaceSearch {
     constructor({
@@ -69,7 +44,7 @@ export default class HuggingFaceSearch {
 
         let normalizedTypes = [...new Set(rawTypes
             .map(type => String(type || "").trim().toLowerCase()))]
-            .filter(type => API_BY_REPO_TYPE[type]);
+            .filter(type => apiEndpoint(type));
 
         if (normalizedTypes.length === 0) {
             return ["model"];
@@ -79,54 +54,7 @@ export default class HuggingFaceSearch {
     }
 
     parseQuery(input) {
-        let rawQuery = (input || "").trim();
-        if (!rawQuery) {
-            return {
-                query: "",
-                queryClass: null,
-                cacheKey: "",
-            };
-        }
-
-        // Keep pagination behavior stable when parsing directly from raw input.
-        let args = rawQuery.split(/\s+/i);
-        if (args.length > 1) {
-            let lastArg = args[args.length - 1];
-            if (lastArg?.startsWith("-")) {
-                args.pop();
-                rawQuery = args.join(" ").trim();
-            }
-        }
-
-        let prefixMatch = rawQuery.match(QUERY_CLASS_PREFIX_REGEX);
-        if (prefixMatch) {
-            let queryClass = (prefixMatch[1] || "").toLowerCase();
-            if (QUERY_CLASSES.includes(queryClass)) {
-                return {
-                    query: (prefixMatch[2] || "").trim(),
-                    queryClass,
-                    cacheKey: rawQuery,
-                };
-            }
-        }
-
-        let suffixMatch = rawQuery.match(QUERY_CLASS_SUFFIX_REGEX);
-        if (suffixMatch) {
-            let queryClass = (suffixMatch[2] || "").toLowerCase();
-            if (QUERY_CLASSES.includes(queryClass)) {
-                return {
-                    query: (suffixMatch[1] || "").trim(),
-                    queryClass,
-                    cacheKey: rawQuery,
-                };
-            }
-        }
-
-        return {
-            query: rawQuery,
-            queryClass: null,
-            cacheKey: rawQuery,
-        };
+        return parseQuery(input);
     }
 
     async search(input, context = {}) {
@@ -248,7 +176,7 @@ export default class HuggingFaceSearch {
     }
 
     async fetchRepoType(query, limit, repoType) {
-        const endpoint = API_BY_REPO_TYPE[repoType];
+        const endpoint = apiEndpoint(repoType);
         if (!endpoint) {
             return [];
         }
@@ -279,26 +207,11 @@ export default class HuggingFaceSearch {
     }
 
     extractQuicksearchId(item, queryClass) {
-        switch (queryClass) {
-            case "space":
-                return item.id || item.name || item.slug || null;
-            case "org":
-                return item.name || item.id || null;
-            case "user":
-                return item.user || item.name || item.id || null;
-            case "paper":
-                return item._id || item.id || null;
-            case "collection":
-                return item._id || item.id || item.slug || null;
-            case "bucket":
-                return item.id || item.name || item.slug || item._id || null;
-            default:
-                return item.id || item.name || item.slug || item._id || null;
-        }
+        return extractQuicksearchId(item, queryClass);
     }
 
     async fetchQuicksearchType(query, limit, queryClass) {
-        let collectionKey = QUICKSEARCH_KEY_BY_QUERY_CLASS[queryClass];
+        let collectionKey = quicksearchKey(queryClass);
         if (!collectionKey) {
             return [];
         }
@@ -370,7 +283,7 @@ export default class HuggingFaceSearch {
             let activeTypes = parsed?.queryClass ? [parsed.queryClass] : this.repoTypes;
             let responses = await Promise.allSettled(
                 activeTypes.map(repoType => {
-                    if (API_BY_REPO_TYPE[repoType]) {
+                    if (apiEndpoint(repoType)) {
                         return this.fetchRepoType(parsed.query, limit, repoType);
                     }
                     return this.fetchQuicksearchType(parsed.query, limit, repoType);
