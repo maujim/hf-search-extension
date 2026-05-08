@@ -2,13 +2,9 @@
 .DS_Store
 *.crx
 *.pem
-Cargo.lock
 web-ext-artifacts
 node_modules
-target
-docs/public
-docs/static/advisory
 manifest.json
 extension/core
-extension/manage/*.html
-macro_railroad/pkg
+.ralph/
+hf-remotion-showcase/
