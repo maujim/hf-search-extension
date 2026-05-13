@@ -20,15 +20,21 @@ export class HfSearchOmnibox {
             },
             onAppend: async (query) => {
                 let { queryClass, query: keyword } = parseQuery(query);
-                let url = queryClass
-                    ? buildFullTextSearchUrl(keyword, queryClass) || buildRepoUrl(keyword, queryClass)
+                let searchUrl = queryClass
+                    ? buildFullTextSearchUrl(keyword, queryClass)
                     : buildFullTextSearchUrl(keyword);
+                let directUrl = queryClass ? buildRepoUrl(keyword, queryClass) : null;
+                let url = searchUrl || directUrl;
                 if (!url) {
                     return [];
                 }
-                let description = queryClass
-                    ? `Open Hugging Face ${repoTypeLabel(queryClass).toLowerCase()} <match>${Compat.escape(keyword)}</match>`
-                    : `Search Hugging Face full text for <match>${Compat.escape(keyword)}</match>`;
+
+                let escapedKeyword = Compat.escape(keyword);
+                let description = searchUrl
+                    ? (queryClass
+                        ? `Search Hugging Face ${repoTypeLabel(queryClass).toLowerCase()}s for <match>${escapedKeyword}</match>`
+                        : `Search Hugging Face full text for <match>${escapedKeyword}</match>`)
+                    : `Open Hugging Face ${repoTypeLabel(queryClass).toLowerCase()} <match>${escapedKeyword}</match>`;
                 return [{
                     content: url,
                     description,
