@@ -70,6 +70,15 @@ export function getRepoType(name) {
     return REPO_TYPES[name.toLowerCase()] || null;
 }
 
+// Build a Hugging Face full-text search URL for a raw query.
+// Returns null when the query is empty.
+export function buildFullTextSearchUrl(query) {
+    let raw = (query || "").trim();
+    if (!raw) return null;
+
+    return `https://huggingface.co/search/full-text?q=${encodeURIComponent(raw)}`;
+}
+
 // Build a Hugging Face URL for a repo ID and type.
 // Returns null when the ID is empty or invalid.
 export function buildRepoUrl(repoId, repoType) {
