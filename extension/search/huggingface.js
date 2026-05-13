@@ -7,7 +7,7 @@ export default class HuggingFaceSearch {
         cacheTtlMs = 5 * 60 * 1000,
         maxCacheSize = 100,
         limit = 10,
-        deepLimit = 1000,
+        deepLimit = 64,
         deepPrefetchDelayMs = 900,
         repoTypes = ["model", "dataset"],
     } = {}) {
