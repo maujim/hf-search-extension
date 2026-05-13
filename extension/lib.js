@@ -21,7 +21,7 @@ export class HfSearchOmnibox {
             onAppend: async (query) => {
                 let { queryClass, query: keyword } = parseQuery(query);
                 let url = queryClass
-                    ? buildRepoUrl(keyword, queryClass)
+                    ? buildFullTextSearchUrl(keyword, queryClass) || buildRepoUrl(keyword, queryClass)
                     : buildFullTextSearchUrl(keyword);
                 if (!url) {
                     return [];
@@ -41,7 +41,7 @@ export class HfSearchOmnibox {
 
                 let { queryClass, query: keyword } = parseQuery(content);
                 return queryClass
-                    ? buildRepoUrl(keyword, queryClass) || content
+                    ? buildFullTextSearchUrl(keyword, queryClass) || buildRepoUrl(keyword, queryClass) || content
                     : buildFullTextSearchUrl(keyword) || content;
             },
             onEmptyNavigate: async (content, disposition) => {
@@ -52,7 +52,7 @@ export class HfSearchOmnibox {
 
                 let { queryClass, query: keyword } = parseQuery(content);
                 let url = queryClass
-                    ? buildRepoUrl(keyword, queryClass)
+                    ? buildFullTextSearchUrl(keyword, queryClass) || buildRepoUrl(keyword, queryClass)
                     : buildFullTextSearchUrl(keyword);
                 if (!url) {
                     return;

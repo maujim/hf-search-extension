@@ -70,13 +70,30 @@ export function getRepoType(name) {
     return REPO_TYPES[name.toLowerCase()] || null;
 }
 
+// Full-text search currently supports these type filters in Hugging Face's API.
+const FULL_TEXT_SEARCH_TYPES = Object.freeze(new Set(["model", "dataset", "space"]));
+
 // Build a Hugging Face full-text search URL for a raw query.
 // Returns null when the query is empty.
-export function buildFullTextSearchUrl(query) {
+export function buildFullTextSearchUrl(query, repoType = null) {
     let raw = (query || "").trim();
     if (!raw) return null;
 
-    return `https://huggingface.co/search/full-text?q=${encodeURIComponent(raw)}`;
+    let normalizedType = (repoType || "").toLowerCase();
+    if (normalizedType && !supportsFullTextSearch(normalizedType)) {
+        return null;
+    }
+
+    let url = `https://huggingface.co/search/full-text?q=${encodeURIComponent(raw)}`;
+    if (normalizedType) {
+        url += `&type=${encodeURIComponent(normalizedType)}`;
+    }
+    return url;
+}
+
+// Whether Hugging Face full-text search supports a type filter for this repo type.
+export function supportsFullTextSearch(repoType) {
+    return FULL_TEXT_SEARCH_TYPES.has((repoType || "").toLowerCase());
 }
 
 // Build a Hugging Face URL for a repo ID and type.

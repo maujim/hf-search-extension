@@ -1,5 +1,5 @@
 import { parseQuery } from "./query-parser.js";
-import { apiEndpoint, quicksearchKey, extractQuicksearchId } from "./repo-types.js";
+import { quicksearchKey, extractQuicksearchId, supportsFullTextSearch } from "./repo-types.js";
 
 export default class HuggingFaceSearch {
     constructor({
@@ -44,7 +44,7 @@ export default class HuggingFaceSearch {
 
         let normalizedTypes = [...new Set(rawTypes
             .map(type => String(type || "").trim().toLowerCase()))]
-            .filter(type => apiEndpoint(type));
+            .filter(type => supportsFullTextSearch(type) || quicksearchKey(type));
 
         if (normalizedTypes.length === 0) {
             return ["model"];
@@ -175,13 +175,12 @@ export default class HuggingFaceSearch {
         });
     }
 
-    async fetchRepoType(query, limit, repoType) {
-        const endpoint = apiEndpoint(repoType);
-        if (!endpoint) {
+    async fetchFullTextSearchType(query, limit, repoType) {
+        if (!supportsFullTextSearch(repoType)) {
             return [];
         }
 
-        const url = `https://huggingface.co/api/${endpoint}?limit=${limit}&search=${encodeURIComponent(query)}`;
+        const url = `https://huggingface.co/api/search/full-text?limit=${limit}&q=${encodeURIComponent(query)}&type=${encodeURIComponent(repoType)}`;
         let response = await fetch(url, {
             method: "GET",
             headers: {
@@ -194,16 +193,24 @@ export default class HuggingFaceSearch {
         }
 
         let payload = await response.json();
-        if (!Array.isArray(payload)) {
-            return [];
-        }
+        let hits = Array.isArray(payload?.hits) ? payload.hits : [];
 
-        return payload
-            .filter(item => item && typeof item === "object" && typeof item.id === "string")
-            .map(item => ({
-                id: item.id,
-                type: repoType,
-            }));
+        let seen = new Set();
+        return hits
+            .filter(item => item && typeof item === "object")
+            .map(item => {
+                let id = item.name || (item.repoOwner && item.repoName ? `${item.repoOwner}/${item.repoName}` : null);
+                if (!id || seen.has(id)) {
+                    return null;
+                }
+
+                seen.add(id);
+                return {
+                    id: String(id),
+                    type: repoType,
+                };
+            })
+            .filter(Boolean);
     }
 
     extractQuicksearchId(item, queryClass) {
@@ -283,8 +290,8 @@ export default class HuggingFaceSearch {
             let activeTypes = parsed?.queryClass ? [parsed.queryClass] : this.repoTypes;
             let responses = await Promise.allSettled(
                 activeTypes.map(repoType => {
-                    if (apiEndpoint(repoType)) {
-                        return this.fetchRepoType(parsed.query, limit, repoType);
+                    if (supportsFullTextSearch(repoType)) {
+                        return this.fetchFullTextSearchType(parsed.query, limit, repoType);
                     }
                     return this.fetchQuicksearchType(parsed.query, limit, repoType);
                 })

@@ -29,14 +29,14 @@ This file documents the Hugging Face query-class syntax added to the extension.
 ## Endpoint mapping
 
 - Default (no `@keyword`):
-  - `GET /api/models`
-  - `GET /api/datasets`
+  - `GET /api/search/full-text?type=model`
+  - `GET /api/search/full-text?type=dataset`
   - Results are merged round-robin.
 
 - Explicit class:
-  - `@model ...` or `... @model` → `GET /api/models`
-  - `@dataset ...` or `... @dataset` → `GET /api/datasets`
-  - `@space ...` or `... @space` → `GET /api/quicksearch?type=space`
+  - `@model ...` or `... @model` → `GET /api/search/full-text?type=model`
+  - `@dataset ...` or `... @dataset` → `GET /api/search/full-text?type=dataset`
+  - `@space ...` or `... @space` → `GET /api/search/full-text?type=space`
   - `@org ...` or `... @org` → `GET /api/quicksearch?type=org`
   - `@user ...` or `... @user` → `GET /api/quicksearch?type=user`
   - `@paper ...` or `... @paper` → `GET /api/quicksearch?type=paper`
