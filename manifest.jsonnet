@@ -29,4 +29,3 @@ json {
   description: 'A browser extension to search Hugging Face models, datasets, and more from the address bar.',
 }
 .addIcons(icons())
-.addPermissions(['storage'])
