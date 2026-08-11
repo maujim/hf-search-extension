@@ -5,11 +5,16 @@ import { buildBrowseSearchUrl, buildFullTextSearchUrl, buildRepoUrl, repoTypeLab
 const URL_PROTOCOLS = /^(https?|file|chrome-extension|moz-extension):\/\//i;
 
 export class HfSearchOmnibox {
-    static async run({ omnibox, huggingFaceSearcher }) {
+    static run({ omnibox, huggingFaceSearcher }) {
+        const selectSearchUrl = (keyword, queryClass) => {
+            let browseUrl = queryClass ? buildBrowseSearchUrl(keyword, queryClass) : null;
+            return browseUrl
+                || (queryClass ? buildFullTextSearchUrl(keyword, queryClass) : null)
+                || buildFullTextSearchUrl(keyword);
+        };
+
         omnibox.bootstrap({
-            onSearch: async (query) => {
-                return await huggingFaceSearcher.search(query);
-            },
+            onSearch: (query, context) => huggingFaceSearcher.search(query, context),
             onFormat: (_, repo) => {
                 let repoType = repo.type || "model";
                 let url = buildRepoUrl(repo.id, repoType) || repo.id;
@@ -20,24 +25,21 @@ export class HfSearchOmnibox {
             },
             onAppend: async (query) => {
                 let { queryClass, query: keyword } = parseQuery(query);
-                let browseUrl = queryClass ? buildBrowseSearchUrl(keyword, queryClass) : null;
-                let searchUrl = queryClass
-                    ? (browseUrl || buildFullTextSearchUrl(keyword, queryClass))
-                    : buildFullTextSearchUrl(keyword);
-                let directUrl = queryClass ? buildRepoUrl(keyword, queryClass) : null;
-                let url = searchUrl || directUrl;
-                if (!url) {
+                let searchUrl = selectSearchUrl(keyword, queryClass);
+                if (!searchUrl) {
                     return [];
                 }
 
                 let escapedKeyword = Compat.escape(keyword);
-                let description = searchUrl
-                    ? (queryClass
-                        ? `Search Hugging Face ${repoTypeLabel(queryClass).toLowerCase()}s for <match>${escapedKeyword}</match>`
-                        : `Search Hugging Face full text for <match>${escapedKeyword}</match>`)
-                    : `Open Hugging Face ${repoTypeLabel(queryClass).toLowerCase()} <match>${escapedKeyword}</match>`;
+                let isTypedSearch = queryClass && (
+                    buildBrowseSearchUrl(keyword, queryClass)
+                    || buildFullTextSearchUrl(keyword, queryClass)
+                );
+                let description = isTypedSearch
+                    ? `Search Hugging Face ${repoTypeLabel(queryClass).toLowerCase()}s for <match>${escapedKeyword}</match>`
+                    : `Search Hugging Face full text for <match>${escapedKeyword}</match>`;
                 let suggestions = [{
-                    content: url,
+                    content: searchUrl,
                     description,
                 }];
                 if (!queryClass) {
@@ -56,9 +58,7 @@ export class HfSearchOmnibox {
                 }
 
                 let { queryClass, query: keyword } = parseQuery(content);
-                return queryClass
-                    ? buildBrowseSearchUrl(keyword, queryClass) || buildFullTextSearchUrl(keyword, queryClass) || buildRepoUrl(keyword, queryClass) || content
-                    : buildFullTextSearchUrl(keyword) || content;
+                return selectSearchUrl(keyword, queryClass) || content;
             },
             onEmptyNavigate: async (content, disposition) => {
                 if (URL_PROTOCOLS.test(content)) {
@@ -67,9 +67,7 @@ export class HfSearchOmnibox {
                 }
 
                 let { queryClass, query: keyword } = parseQuery(content);
-                let url = queryClass
-                    ? buildBrowseSearchUrl(keyword, queryClass) || buildFullTextSearchUrl(keyword, queryClass) || buildRepoUrl(keyword, queryClass)
-                    : buildFullTextSearchUrl(keyword);
+                let url = selectSearchUrl(keyword, queryClass);
                 if (!url) {
                     return;
                 }

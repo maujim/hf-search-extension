@@ -1,7 +1,7 @@
 import { HfSearchOmnibox } from "./lib.js";
 import HuggingFaceSearch from "./search/huggingface.js";
 
-async function start(omnibox) {
+function start(omnibox) {
     const huggingFaceSearcher = new HuggingFaceSearch({
         debounceMs: 250,
         cacheTtlMs: 60 * 1000,
@@ -9,7 +9,7 @@ async function start(omnibox) {
         limit: 10,
     });
 
-    HfSearchOmnibox.run({
+    return HfSearchOmnibox.run({
         omnibox,
         huggingFaceSearcher,
     });

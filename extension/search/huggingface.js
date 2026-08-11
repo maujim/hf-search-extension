@@ -308,7 +308,21 @@ export default class HuggingFaceSearch {
             });
 
             let mergedResult = this.mergeRoundRobin(groupedResults);
-            this.setCache(cacheKey, mergedResult, limit);
+            let allFulfilled = responses.every(result => result.status === "fulfilled");
+            if (allFulfilled) {
+                this.setCache(cacheKey, mergedResult, limit);
+                return mergedResult;
+            }
+
+            const current = this.getFromCache(cacheKey);
+            if (current) {
+                return current.value;
+            }
+
+            if (existing) {
+                return existing.value;
+            }
+
             return mergedResult;
         })();
 

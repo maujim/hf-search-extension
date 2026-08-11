@@ -32,7 +32,7 @@ export function parseQuery(input) {
     let args = raw.split(/\s+/i);
     if (args.length > 1) {
         let lastArg = args[args.length - 1];
-        if (lastArg && lastArg.startsWith("-")) {
+        if (/^-+$/.test(lastArg)) {
             args.pop();
             raw = args.join(" ").trim();
         }
