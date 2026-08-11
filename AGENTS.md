@@ -66,7 +66,7 @@ From repo root:
 ## Hugging Face query classes (extension)
 
 Supported query-class syntax in omnibox:
-- `@model`, `@dataset`, `@space`, `@org`, `@user`, `@paper`, `@collection`, `@bucket`
+- `@model`, `@dataset`, `@space`, `@org`, `@user`, `@paper`, `@collection`
 
 Query format:
 - `@keyword search terms` or `search terms @keyword`
@@ -78,7 +78,7 @@ Behavior:
 Endpoint mapping strategy:
 - `@model` → `GET /api/models`
 - `@dataset` → `GET /api/datasets`
-- others (`@space/@org/@user/@paper/@collection/@bucket`) → `GET /api/quicksearch` with `type=<keyword>`
+- others (`@space/@org/@user/@paper/@collection`) → `GET /api/quicksearch` with `type=<keyword>`
 
 ## Editing conventions
 

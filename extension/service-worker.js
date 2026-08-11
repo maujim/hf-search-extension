@@ -3,18 +3,18 @@ import { start } from "./main.js";
 
 let isInited = false;
 
-async function init() {
+function init() {
     if (isInited) {
         return;
     }
-    isInited = true;
 
     const defaultSuggestion = "Search <match>Hugging Face</match> from your address bar.";
     const omnibox = Omnibox.extension({
         defaultSuggestion,
         maxSuggestionSize: Compat.omniboxPageSize(),
     });
-    await start(omnibox);
+    start(omnibox);
+    isInited = true;
 }
 
 chrome.runtime.onInstalled.addListener(init);

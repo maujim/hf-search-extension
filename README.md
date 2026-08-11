@@ -6,7 +6,7 @@ A lightweight browser extension that lets you search Hugging Face directly from 
 
 - Omnibox search against Hugging Face
 - Query-class support:
-  - `@model`, `@dataset`, `@space`, `@org`, `@user`, `@paper`, `@collection`, `@bucket`
+  - `@model`, `@dataset`, `@space`, `@org`, `@user`, `@paper`, `@collection`
 - Query format:
   - `@dataset llama`
   - `llama @dataset`

@@ -18,12 +18,12 @@ local browser = std.extVar('browser');
 local json = if std.member(['chrome', 'edge'], browser) then
   manifest_v3.new(name, keyword, description, version, service_worker='service-worker.js')
 else
-  manifest_v3.new(name, keyword, description, version, background_page='firefox-bg.html') { browser_specific_settings: {
-    gecko: {
-      id: '{04188724-64d3-497b-a4fd-7caffe6eab29}',
-      strict_min_version: '109.0',
-    },
-  } };
+  (manifest_v3.new(name, keyword, description, version, background_page='firefox-bg.html') { browser_specific_settings: {
+     gecko: {
+       id: '{04188724-64d3-497b-a4fd-7caffe6eab29}',
+       strict_min_version: '109.0',
+     },
+   } }).addPermissions('alarms');
 
 json {
   description: 'A browser extension to search Hugging Face models, datasets, and more from the address bar.',

@@ -19,7 +19,6 @@ This file documents the Hugging Face query-class syntax added to the extension.
     - `user`
     - `paper`
     - `collection`
-    - `bucket`
 
 - Pagination token precedence:
   - The trailing pagination token (`-`, `--`, etc.) is parsed first by omnibox pagination.
@@ -41,7 +40,6 @@ This file documents the Hugging Face query-class syntax added to the extension.
 - `@user ...` or `... @user` → `GET /api/quicksearch?type=user`
 - `@paper ...` or `... @paper` → `GET /api/quicksearch?type=paper`
 - `@collection ...` or `... @collection` → `GET /api/quicksearch?type=collection`
-- `@bucket ...` or `... @bucket` → `GET /api/quicksearch?type=bucket`
 
 For explicit `@model`, `@dataset`, and `@space`, `Enter`/fallback navigation now uses browse search pages:
 - model → `https://huggingface.co/models?search=<encodeURIComponent(trimmed query)>`
@@ -66,7 +64,6 @@ Result rows are typed and open canonical Hugging Face pages:
 - `user` → `https://huggingface.co/<id>`
 - `paper` → `https://huggingface.co/papers/<id>`
 - `collection` → `https://huggingface.co/collections/<id>`
-- `bucket` → `https://huggingface.co/bucket/<id>`
 
 ## Examples
 

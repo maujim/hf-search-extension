@@ -52,13 +52,6 @@ const REPO_TYPES = Object.freeze({
         idFields: ["_id", "id", "slug"],
         urlPath: "collections",
     },
-    bucket: {
-        apiEndpoint: null,
-        quicksearchKey: "buckets",
-        label: "Bucket",
-        idFields: ["id", "name", "slug", "_id"],
-        urlPath: "bucket",
-    },
 });
 
 // The canonical list of query-class names.
