@@ -34,15 +34,27 @@ This file documents the Hugging Face query-class syntax added to the extension.
   - Results are merged round-robin.
 
 - Explicit class:
-  - `@model ...` or `... @model` → `GET /api/search/full-text?type=model`
-  - `@dataset ...` or `... @dataset` → `GET /api/search/full-text?type=dataset`
-  - `@space ...` or `... @space` → `GET /api/search/full-text?type=space`
-  - `@org ...` or `... @org` → `GET /api/quicksearch?type=org`
-  - `@user ...` or `... @user` → `GET /api/quicksearch?type=user`
-  - `@paper ...` or `... @paper` → `GET /api/quicksearch?type=paper`
-  - `@collection ...` or `... @collection` → `GET /api/quicksearch?type=collection`
-  - `@bucket ...` or `... @bucket` → `GET /api/quicksearch?type=bucket`
+- `@model ...` or `... @model` → `GET /api/search/full-text?type=model`
+- `@dataset ...` or `... @dataset` → `GET /api/search/full-text?type=dataset`
+- `@space ...` or `... @space` → `GET /api/search/full-text?type=space`
+- `@org ...` or `... @org` → `GET /api/quicksearch?type=org`
+- `@user ...` or `... @user` → `GET /api/quicksearch?type=user`
+- `@paper ...` or `... @paper` → `GET /api/quicksearch?type=paper`
+- `@collection ...` or `... @collection` → `GET /api/quicksearch?type=collection`
+- `@bucket ...` or `... @bucket` → `GET /api/quicksearch?type=bucket`
 
+For explicit `@model`, `@dataset`, and `@space`, `Enter`/fallback navigation now uses browse search pages:
+- model → `https://huggingface.co/models?search=<encodeURIComponent(trimmed query)>`
+- dataset → `https://huggingface.co/datasets?search=<encodeURIComponent(trimmed query)>`
+- space → `https://huggingface.co/spaces?search=<encodeURIComponent(trimmed query)>`
+
+## Fallback rows
+
+For unclassified queries (no `@keyword`), fallback rows are shown in this order:
+- Full-text: `https://huggingface.co/search/full-text?q=<encodeURIComponent(trimmed query)>`
+- model browse: `https://huggingface.co/models?search=<encodeURIComponent(trimmed query)>`
+- dataset browse: `https://huggingface.co/datasets?search=<encodeURIComponent(trimmed query)>`
+- space browse: `https://huggingface.co/spaces?search=<encodeURIComponent(trimmed query)>`
 ## Navigation mapping
 
 Result rows are typed and open canonical Hugging Face pages:

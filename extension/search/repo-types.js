@@ -90,6 +90,25 @@ export function buildFullTextSearchUrl(query, repoType = null) {
     }
     return url;
 }
+// Build a Hugging Face browse-style search URL for models/datasets/spaces.
+// Returns null when the query is empty or repo type unsupported.
+export function buildBrowseSearchUrl(query, repoType) {
+    let raw = (query || "").trim();
+    if (!raw) return null;
+
+    let normalizedType = (repoType || "").toLowerCase();
+    if (!FULL_TEXT_SEARCH_TYPES.has(normalizedType)) {
+        return null;
+    }
+
+    let info = getRepoType(normalizedType);
+    if (!info) return null;
+
+    let path = info.apiEndpoint || info.urlPath;
+    if (!path) return null;
+
+    return `https://huggingface.co/${path}?search=${encodeURIComponent(raw)}`;
+}
 
 // Whether Hugging Face full-text search supports a type filter for this repo type.
 export function supportsFullTextSearch(repoType) {
