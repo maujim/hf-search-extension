@@ -37,7 +37,6 @@ Removed from active scope:
    ```
 2. Install required tools:
    - `jsonnet`
-   - `esbuild`
    - `web-ext`
 
 ## Common build commands
@@ -61,24 +60,36 @@ From repo root:
 ## External API docs reference
 
 - Hugging Face API OpenAPI spec: `https://huggingface.co/.well-known/openapi.json`
-- Use this as the canonical API entrypoint before implementing or changing endpoints.
+- `/api/search/full-text` currently works for model, dataset, and space
+  searches, but is undocumented and absent from the canonical OpenAPI spec.
+  Monitor it and consider a documented fallback or contract smoke check.
+- Org, user, paper, and collection searches use
+  `/api/quicksearch?type=<keyword>`.
 
 ## Hugging Face query classes (extension)
 
 Supported query-class syntax in omnibox:
+
 - `@model`, `@dataset`, `@space`, `@org`, `@user`, `@paper`, `@collection`
 
 Query format:
+
 - `@keyword search terms` or `search terms @keyword`
 - Examples: `@dataset llama`, `llama @dataset`
 
 Behavior:
+
 - No `@keyword` => default mixed HF search (`model` + `dataset`)
 
 Endpoint mapping strategy:
-- `@model` → `GET /api/models`
-- `@dataset` → `GET /api/datasets`
-- others (`@space/@org/@user/@paper/@collection`) → `GET /api/quicksearch` with `type=<keyword>`
+- `@model`, `@dataset`, `@space` → `GET /api/search/full-text` with
+  `type=<keyword>`
+- `@org`, `@user`, `@paper`, `@collection` → `GET /api/quicksearch` with
+  `type=<keyword>`
+
+Navigation must use safely encoded browse search URLs for model, dataset, and
+space. Non-browse classes fall back to generic HF full-text navigation rather
+than fabricating direct resource paths.
 
 ## Editing conventions
 

@@ -33,6 +33,7 @@ This file documents the Hugging Face query-class syntax added to the extension.
   - Results are merged round-robin.
 
 - Explicit class:
+
 - `@model ...` or `... @model` → `GET /api/search/full-text?type=model`
 - `@dataset ...` or `... @dataset` → `GET /api/search/full-text?type=dataset`
 - `@space ...` or `... @space` → `GET /api/search/full-text?type=space`
@@ -41,29 +42,38 @@ This file documents the Hugging Face query-class syntax added to the extension.
 - `@paper ...` or `... @paper` → `GET /api/quicksearch?type=paper`
 - `@collection ...` or `... @collection` → `GET /api/quicksearch?type=collection`
 
-For explicit `@model`, `@dataset`, and `@space`, `Enter`/fallback navigation now uses browse search pages:
+`/api/search/full-text` is currently working but undocumented and absent from
+the canonical OpenAPI document. Monitor it and consider a documented fallback
+or contract smoke check if Hugging Face publishes one.
+
+For `@model`, `@dataset`, and `@space`, `Enter`/fallback navigation uses safe
+encoded browse search pages:
+
 - model → `https://huggingface.co/models?search=<encodeURIComponent(trimmed query)>`
 - dataset → `https://huggingface.co/datasets?search=<encodeURIComponent(trimmed query)>`
 - space → `https://huggingface.co/spaces?search=<encodeURIComponent(trimmed query)>`
 
+Other query classes (`@org`, `@user`, `@paper`, and `@collection`) fall back to
+generic Hugging Face full-text navigation, not fabricated direct resource paths.
+
 ## Fallback rows
 
 For unclassified queries (no `@keyword`), fallback rows are shown in this order:
+
 - Full-text: `https://huggingface.co/search/full-text?q=<encodeURIComponent(trimmed query)>`
 - model browse: `https://huggingface.co/models?search=<encodeURIComponent(trimmed query)>`
 - dataset browse: `https://huggingface.co/datasets?search=<encodeURIComponent(trimmed query)>`
 - space browse: `https://huggingface.co/spaces?search=<encodeURIComponent(trimmed query)>`
+
 ## Navigation mapping
 
-Result rows are typed and open canonical Hugging Face pages:
-
-- `model` → `https://huggingface.co/<id>`
-- `dataset` → `https://huggingface.co/datasets/<id>`
-- `space` → `https://huggingface.co/spaces/<id>`
-- `org` → `https://huggingface.co/<id>`
-- `user` → `https://huggingface.co/<id>`
-- `paper` → `https://huggingface.co/papers/<id>`
-- `collection` → `https://huggingface.co/collections/<id>`
+Browse-class fallback URLs are safely encoded search pages for `model`,
+`dataset`, and `space` (as listed above). Non-browse classes do not construct
+direct URLs from query text: they fall back to generic
+`https://huggingface.co/search/full-text?q=<encodeURIComponent(trimmed query)>`
+navigation. Result rows, when they contain a canonical result identifier, may
+open the corresponding Hugging Face page; that is distinct from fabricating a
+path from the query.
 
 ## Examples
 

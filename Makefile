@@ -7,24 +7,23 @@
 #   make pack chrome|firefox|edge - Build and package as .zip
 #   make clean    - Remove build artifacts
 
-.PHONY: chrome firefox edge pack clean assert
+.PHONY: chrome firefox edge pack clean core-sync assert
 
 # Copy core framework to extension
-extension/core:
-	@rm -rf extension/core
+core-sync: clean
 	@cp -r core/src extension/core
 
-chrome: clean
+chrome: core-sync
 	@jsonnet -J core manifest.jsonnet --ext-str browser=chrome -o extension/manifest.json
 
-firefox: clean
+firefox: core-sync
 	@jsonnet -J core manifest.jsonnet --ext-str browser=firefox -o extension/manifest.json
 
-edge: clean
+edge: core-sync
 	@jsonnet -J core manifest.jsonnet --ext-str browser=edge -o extension/manifest.json
 
-clean: extension/core
-	@rm -rf extension/manifest.json
+clean:
+	@rm -rf extension/manifest.json extension/core
 
 pack:
 	@if [ -z "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
@@ -37,3 +36,4 @@ pack:
 # Accept extra arguments silently
 %:
 	@:
+
